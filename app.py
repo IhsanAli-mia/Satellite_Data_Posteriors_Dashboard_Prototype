@@ -21,22 +21,26 @@ df = pd.DataFrame(data)
 
 app = Dash(__name__)
 
+df_filtered = df[~df['date'].str.startswith('2025')]
+# print(df_filtered['date'].max())
+
 app.layout = html.Div([
     html.H1("Cloud Cover Dashboard"),
 
+    
     html.Div([
         html.Div(f"Total Tiles: {len(df)}"),
-        html.Div(f"Date Range: {df['date'].min()} to {df['date'].max()}"),
+        html.Div(f"Date Range: {df_filtered['date'].min()} to {df_filtered['date'].max()}"),
         html.Div(f"Mean Cloud Cover: {df['cloud_cover'].mean():.2f}%"),
-        html.Div(f"Metadata Available: {df['metadata_available'].eq('true').sum()} / {len(df)}")
+        html.Div(f"Metadata Available: {df['metadata_available'].eq(True).sum()} / {len(df)}")
     ], style={'display': 'flex', 'gap': '2rem'}),
 
     html.Hr(),
 
     dcc.DatePickerRange(
         id='date-range',
-        start_date=df['date'].min(),
-        end_date=df['date'].max(),
+        start_date=df_filtered['date'].min(),
+        end_date=df_filtered['date'].max(),
         display_format='YYYY-MM-DD'
     ),
 
@@ -77,4 +81,4 @@ def update_charts(start_date, end_date, cloud_range):
     return hist, line, map_fig
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0",debug=True)
+    app.run(debug=True)
