@@ -77,4 +77,4 @@ def update_charts(start_date, end_date, cloud_range):
     return hist, line, map_fig
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0",debug=True)
