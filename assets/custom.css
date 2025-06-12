@@ -1,0 +1,124 @@
+/* Base Layout */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #1b1e36;
+    color: #f1f2f6;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Dashboard Title */
+.dashboard-title {
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+    color: #ffffff;
+}
+
+.stats-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin: 20px auto;
+    max-width: 1100px;
+}
+
+.stat-card {
+    background-color: #2f3640;
+    border-radius: 8px;
+    border: 1px solid #3e4a59;
+    padding: 12px 18px;
+    text-align: center;
+    min-width: 180px;
+    max-width: 220px;
+    flex: 1;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 10px rgba(38, 222, 129, 0.15);
+}
+
+.stat-label {
+    color: #a4b0be;
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+}
+
+.stat-value {
+    color: #d1d8e0;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+
+/* Divider */
+.divider {
+    height: 1px;
+    background-color: #2f364b;
+    margin: 20px 0;
+    border: none;
+}
+
+/* Date Picker */
+.date-picker {
+    background-color: #2a2f50;
+    border: 1px solid #57606f;
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #dcdde1;
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+    display: inline-block;
+}
+
+/* Range Slider */
+.range-slider {
+    width: 80%;
+    margin: 20px auto;
+}
+
+.rc-slider-rail {
+    background-color: #57606f !important;
+}
+
+.rc-slider-track {
+    background-color: #6173d8 !important;
+}
+
+.rc-slider-handle {
+    background-color: #6173d8 !important;
+    border: 2px solid #ffffff !important;
+    width: 14px !important;
+    height: 14px !important;
+    transition: box-shadow 0.2s ease;
+}
+
+.rc-slider-handle:hover {
+    box-shadow: 0 0 8px rgba(26, 188, 156, 0.6);
+}
+
+/* Graph Style */
+.graph {
+    background-color: #232849;
+    border-radius: 12px;
+    padding: 10px;
+    margin-top: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: box-shadow 0.2s ease;
+}
+
+.graph:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
