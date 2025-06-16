@@ -8,17 +8,21 @@ import dash_bootstrap_components as dbc
 with open("cloud_data.json") as f:
     raw_data = json.load(f)
 
+
+df = pd.DataFrame(raw_data)
+
+# print(df)
+
 # Convert to DataFrame
-data = []
-for meta, (dt, cloud), (lon, lat, cloud_val) in zip(raw_data["metadata"], raw_data["cloud_covers"], raw_data["centroids"]):
-    data.append({
-        "metadata_available": meta,
-        "date": dt,
-        "cloud_cover": cloud,
-        "lon": lon,
-        "lat": lat,
-    })
-df = pd.DataFrame(data)
+# data = []
+# for meta, (dt, cloud), (lon, lat, cloud_val) in zip(raw_data["metadata"], raw_data["cloud_covers"], raw_data["centroids"]):
+#     data.append({
+#         "metadata_available": meta,
+#         "date": dt,
+#         "cloud_cover": cloud,
+#         "lon": lon,
+#         "lat": lat,
+#     })
 
 app = Dash(__name__, external_stylesheets=[
     dbc.themes.DARKLY,
@@ -26,27 +30,55 @@ app = Dash(__name__, external_stylesheets=[
     '/assets/custom.css'
 ])
 
-df_filtered = df[~df['date'].str.startswith('2025')]
+df_filtered = df[~df['date_only'].str.startswith('2025')]
+
+min_res = 0
+max_res = 100
+
+
+filtered = df[df['gsd'].between(min_res, max_res)]
+
+# print(filtered)
+# Sum the lengths of all tilewise_cloud_cover arrays
+
 
 app.layout = html.Div([
     html.H1("Cloud Cover Dashboard", className='dashboard-title'),
     html.Div([
         html.Div([
             html.P("Total Tiles", className='stat-label'),
-            html.P(f"{len(df)}", className='stat-value')
+            html.P(id='total_tiles', className='stat-value')
         ], className='stat-card'),
         html.Div([
             html.P("Date Range", className='stat-label'),
-            html.P(f"{df_filtered['date'].min()} to {df_filtered['date'].max()}", className='stat-value')
+            html.P(f"{df_filtered['date_only'].min()} to {df_filtered['date_only'].max()}", className='stat-value')
         ], className='stat-card'),
         html.Div([
             html.P("Mean Cloud Cover", className='stat-label'),
-            html.P(f"{df['cloud_cover'].mean():.2f}%", className='stat-value')
+            html.P(id='mean-cloud', className='stat-value')
         ], className='stat-card'),
         html.Div([
             html.P("Metadata Available", className='stat-label'),
-            html.P(f"{df['metadata_available'].eq(True).sum()} / {len(df)}", className='stat-value')
-        ], className='stat-card')
+            html.P(id='metadata-available', className='stat-value')
+        ], className='stat-card'),
+        html.Div([
+        html.Div(
+            "Image Resolution",
+            className="resolution-label"
+        ),
+        dcc.RadioItems(
+            id='resolution-selector',
+            options=[
+                {'label': 'All Resolutions(1-30m)', 'value': 1},
+                {'label': 'High (≤10m)', 'value': 10},
+                {'label': 'Medium (10-30m)', 'value': 30}
+            ],
+            value=1,
+            labelClassName="resolution-option",
+            inputClassName="resolution-option-input",
+            className="resolution-options"
+        ),
+    ], className="resolution-selector-container")
     ], className='stats-container'),
     
     html.Hr(className='divider'),
@@ -54,8 +86,8 @@ app.layout = html.Div([
     html.Div(
         dcc.DatePickerRange(
             id='date-range',
-            start_date=df_filtered['date'].min(),
-            end_date=df_filtered['date'].max(),
+            start_date=df_filtered['date_only'].min(),
+            end_date=df_filtered['date_only'].max(),
             display_format='YYYY-MM-DD',
             className='date-picker'
         ),
@@ -71,22 +103,56 @@ app.layout = html.Div([
     ),
 
     dcc.Graph(id='histogram', className='graph'),
-    dcc.Graph(id='line-chart', className='graph'),
+    dcc.Graph(id='scatter', className='graph'),
     dcc.Graph(id='map', className='graph')
 ])
 
 @app.callback(
     [Output('histogram', 'figure'),
-     Output('line-chart', 'figure'),
-     Output('map', 'figure')],
+     Output('scatter', 'figure'),
+     Output('map', 'figure'),
+     Output('total_tiles', 'children'),
+     Output('mean-cloud', 'children'),
+     Output('metadata-available', 'children')],
     [Input('date-range', 'start_date'),
      Input('date-range', 'end_date'),
-     Input('cloud-range', 'value')]
+     Input('cloud-range', 'value'),
+     Input('resolution-selector', 'value')]
 )
-def update_charts(start_date, end_date, cloud_range):
-    mask = (df['date'] >= start_date) & (df['date'] <= end_date) & \
-           (df['cloud_cover'] >= cloud_range[0]) & (df['cloud_cover'] <= cloud_range[1])
-    filtered = df[mask]
+def update_charts(start_date, end_date, cloud_range,selected_resolution):
+    if selected_resolution == 1:
+        min_res = 0
+        max_res = 30
+    elif selected_resolution == 10:
+        min_res = 0
+        max_res = 10
+    else:
+        min_res = 10
+        max_res = 30
+        
+    
+    res_filtered = df[df['gsd'].between(min_res, max_res)]
+    
+    mask = (
+    ((res_filtered['date_only'] >= start_date) & (res_filtered['date_only'] <= end_date) &
+     (res_filtered['cloud_cover'] >= cloud_range[0]) & (res_filtered['cloud_cover'] <= cloud_range[1]))
+    ) | (
+        (res_filtered['date_only'].str.startswith('2025')) & 
+        (res_filtered['cloud_cover'] >= cloud_range[0]) & (res_filtered['cloud_cover'] <= cloud_range[1])  # Same cloud range
+    )
+
+        
+    res_filtered = res_filtered[mask]
+    filtered = res_filtered[~res_filtered['date_only'].str.startswith('2025')]
+    
+    total_tiles = res_filtered['tilewise_cloud_cover'].apply(len).sum()
+    
+    mean_cloud = f"{res_filtered['cloud_cover'].mean():.2f}%"
+    
+    metadata_available = f"{((res_filtered['metadata_available'].eq(True))*(res_filtered['tilewise_cloud_cover'].apply(len))).sum()} / {total_tiles}"
+
+    # f"{df['cloud_cover'].mean():.2f}%"
+    # f"{((filtered['metadata_available'].eq(True))*(filtered['tilewise_cloud_cover'].apply(len))).sum()} / {filtered['tilewise_cloud_cover'].apply(len).sum()}"
 
     # Shared dark layout
     dark_layout = dict(
@@ -101,26 +167,33 @@ def update_charts(start_date, end_date, cloud_range):
         margin=dict(l=40, r=40, t=40, b=40)
     )
 
+    cloud_cover_values = [item for sublist in res_filtered['tilewise_cloud_cover'] for item in sublist]
+
     # Histogram
     hist = px.histogram(
-        filtered, x='cloud_cover', nbins=20, title='Cloud Cover Distribution',
+        x = cloud_cover_values, nbins=40, title='Cloud Cover Distribution',
         color_discrete_sequence=["#6173d8"]
     )
     hist.update_layout(dark_layout)
 
-    # Line chart
-    line = px.line(
-        filtered.groupby('date')['cloud_cover'].mean().reset_index(),
-        x='date', y='cloud_cover', title='Daily Mean Cloud Cover',
-        color_discrete_sequence=["#6173d8"]
+    scatter = px.strip(
+        filtered,
+        x='date_only',
+        y='cloud_cover',
+        title='Individual Cloud Cover Measurements',
+        color_discrete_sequence=["#6173d8"],
+        stripmode='overlay'  # Overlap points slightly
     )
-    line.update_layout(dark_layout)
+    scatter.update_traces(jitter=0.3)  # Add jitter
+    scatter.update_layout(dark_layout)
 
+
+    
     # Updated map to match dark theme
     map_fig = px.scatter_mapbox(
-        filtered,
-        lat='lat',
-        lon='lon',
+        res_filtered,
+        lat='lat_center',
+        lon='lon_center',
         color='cloud_cover',
         color_continuous_scale='Viridis',
         mapbox_style='carto-darkmatter',  # No token required, works well
@@ -136,7 +209,8 @@ def update_charts(start_date, end_date, cloud_range):
     )
     
 
-    return hist, line, map_fig
+    return hist, scatter, map_fig,total_tiles,mean_cloud,metadata_available
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)
