@@ -147,7 +147,6 @@ def update_charts(start_date, end_date, cloud_range,selected_resolution):
     
     total_tiles = res_filtered['tilewise_cloud_cover'].apply(len).sum()
     
-    mean_cloud = f"{res_filtered['cloud_cover'].mean():.2f}%"
     
     metadata_available = f"{((res_filtered['metadata_available'].eq(True))*(res_filtered['tilewise_cloud_cover'].apply(len))).sum()} / {total_tiles}"
 
@@ -168,14 +167,54 @@ def update_charts(start_date, end_date, cloud_range,selected_resolution):
     )
 
     cloud_cover_values = [item for sublist in res_filtered['tilewise_cloud_cover'] for item in sublist]
+    mean_cloud = f"{(sum(cloud_cover_values) / len(cloud_cover_values)):.2f}%"
+    
+    df_new = pd.DataFrame({'cloud_cover': cloud_cover_values, 'source': 'original'})
 
-    # Histogram
-    hist = px.histogram(
-        x = cloud_cover_values, nbins=40, title='Cloud Cover Distribution',
-        color_discrete_sequence=["#6173d8"]
+    # # Bin the data
+    df_new['bin'] = pd.cut(df_new['cloud_cover'], bins=25)
+
+    # # Count number of samples per bin
+    bin_counts = df_new['bin'].value_counts().sort_index()
+    
+    # print(bin_counts)
+
+    # # Define resampling
+    target_size = bin_counts.max()
+    
+    # print(bin_edges)
+
+    resampled_dfs = [df_new.copy()]
+    for b in bin_counts.index:
+        bin_df = df_new[df_new['bin'] == b]
+        count = len(bin_df)
+
+        if count > 0:
+            n_to_add = target_size - count
+            synthetic_samples = bin_df.sample(n=n_to_add, replace=True, random_state=42).copy()
+            synthetic_samples['source'] = 'synthetic'
+            resampled_dfs.append(synthetic_samples)
+
+
+    # print(resampled_dfs)
+    # # Combine resampled
+    df_resampled = pd.concat(resampled_dfs, ignore_index=True)
+    print(df_resampled['cloud_cover'])
+
+    # print(df_resampled)
+    
+    hist_combined = px.histogram(
+        df_resampled,
+        x='cloud_cover',
+        # x = cloud_cover_values,
+        nbins=50,
+        color='source',
+        title='Cloud Cover Distribution: Original (Blue) vs Synthetic (Pink)',
+        color_discrete_map={'original': '#6173d8', 'synthetic': '#f26ba0'}
     )
-    hist.update_layout(dark_layout)
-
+    hist_combined.update_layout(dark_layout)
+    
+    
     scatter = px.strip(
         filtered,
         x='date_only',
@@ -209,8 +248,9 @@ def update_charts(start_date, end_date, cloud_range,selected_resolution):
     )
     
 
-    return hist, scatter, map_fig,total_tiles,mean_cloud,metadata_available
+    return hist_combined, scatter, map_fig,total_tiles,mean_cloud,metadata_available
 
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)
+
